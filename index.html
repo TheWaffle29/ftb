@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Shovel Bucks</title>
+  <style>
+    :html, body { margin: 0; height: 100%; overflow: hidden; background: #8bd3ff; font-family: system-ui, sans-serif; }
+    body { display: grid; place-items: center; }
+    canvas { width: min(100vw, 960px); height: min(100vh, 600px); background: #87ceeb; image-rendering: pixelated; touch-action: none; }
+    .hud { position: fixed; top: 14px; left: 50%; transform: translateX(-50%); color: white; text-shadow: 2px 2px #333; font-weight: 900; font-size: clamp(20px, 4vw, 34px); pointer-events: none; }
+  </style>
+</head>
+<body>
+  <canvas id="game" width="960" height="600"></canvas>
+  <div class="hud">$<span id="cash">0</span></div>
+<script>
+const canvas = document.getElementById('game'), ctx = canvas.getContext('2d');
+const hud = document.getElementById('cash');
+const BLOCK = 48;
+const COLS = 9, ROWS = 1;
+const mineLeft = (960 - COLS * BLOCK) / 2;
+const mineTop = 390;
+let money = 0, dragging = false, digging = false;
+const mouse = {x:480,y:330};
+
+let blocks = [];
+function resetBlocks() {
+  blocks = [];
+  for (let c=0;c<COLS;c++) blocks.push({x: mineLeft+c*BLOCK, y:mineTop, value: c===4 ? 100 : 0, dug:false});
+}
+resetBlocks();
+
+function pointer(e) {
+  const r=canvas.getBoundingRect();
+  const p=e.touches ? e.touches[0] : e;
+  mouse.x=(p.clientX-r.left)*canvas.width/r.width;
+  mouse.y=(p.clientY-r.top)*canvas.height/r.height;
+}
+canvas.addEventListener('mousemove',pointer);
+canvas.addEventListener('mousedown',()=>{dragging=true; digging=true});
+window.addEventListener('mouseup',()=>{dragging=false; digging=false});
+canvas.addEventListener('touchstart',e=>{e.preventEventDefault(); pointer(e); dragging=true; digging=true},{passive:false});
+canvas.addEventListener('touchmove',e=>{e.preventDefault(); pointer(e)},{passive:false});
+canvas.addEventListener('touchend',()=>{dragging=false;digging=false});
+
+function drawBlock(b) {
+  ctx.fillStyle = b.value ? '#8b5a2b' : '#9b6035';
+  ctx.fillRect(b.x,b.y,BLOCK,BLOCK);
+  ctx.strokeStyle='#663d23'; ctx.lineWidth=3; ctx.strokeRect(b.x,b.y,BLOCK,BLOCK);
+  ctx.fillStyle='rgba(255,255,255,.12)';
+  ctx.fillRect(b.x+7,b.y+8,12,5);
+  ctx.fillRect(b.x+31,b.y+27,8,5);
+}
+
+function dig() {
+  if (!digging) return;
+  for (const b of blocks) {
+    if (!b.dug && mouse.x>b.x && mouse.x<b.x+BLOCK && mouse.y>b.y-35 && mouse.y<b.y+BLOCK) {
+      b.dug=true;
+      if (b.value) { money += b.value; hud.textContent=money; }
+    }
+  }
+}
+
+function drawShovel() {
+  ctx.save(); ctx.translate(mouse.x,mouse.y);
+  ctx.rotate(-0.65);
+  ctx.fillStyle='#9bd4de'; ctx.strokeStyle='#5c6a70'; ctx.lineWidth=4;
+  ctx.beginPath(); ctx.moveTo(-20,-16); ctx.lineTo(20,-16); ctx.lineTo(14,28); ctx.quadraticCurveTo(0,38,-14,28); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.rotate(0.65);
+  ctx.fillStyle='#d59b55'; ctx.strokeStyle='#75502e'; ctx.lineWidth=5;
+  ctx.fillRect(-6,-76,12,68); ctx.strokeRect(-6,-76,12,68);
+  ctx.restore();
+}
+
+function drawMoney(x,y) {
+  ctx.save(); ctx.translate(x,y); ctx.rotate(-0.12);
+  ctx.fillStyle='#67cf64'; ctx.strokeStyle='#2d7635'; ctx.lineWidth=4;
+  ctx.fillRect(-28,-18,56,36); ctx.strokeRect(-28,-18,56,36);
+  ctx.beginPath(); ctx.arc(0,0,10,0,Math.PI*2); ctx.fillStyle='#d8f7a1'; ctx.fill(); ctx.stroke();
+  ctx.fillStyle='#2d7635'; ctx.font='bold 18px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('$',0,1); ctx.restore();
+}
+
+function loop() {
+  ctx.clearRect(0,0,960,600);
+  ctx.fillStyle='#87ceeb'; ctx.fillRect(0,0,960,600);
+  ctx.fillStyle='#fff';
+  ctx.beginPath(); ctx.arc(120,100,55,0,7); ctx.arc(175,100,38,0,7); ctx.fill();
+  ctx.fillStyle='#65bd4f'; ctx.fillRect(0,338,960,52);
+  ctx.fillStyle='#8b5a32'; ctx.fillRect(0,390,960,210);
+
+  for (const b of blocks) if (!b.dug) drawBlock(b);
+  dig();
+
+  const holeRect={x:mineLeft+4*BLOCK,y:mineTop};
+  if (!blocks[4].dug) drawMoney(holeRect.x+BLOCK/2,holeRect.y-38);
+  if (blocks.every(b=>b.dug)) {
+    ctx.fillStyle='rgba(255,255,255,.92)'; ctx.font='900 42px system-ui'; ctx.textAlign='center'; ctx.fillText('Mining complete!',480,250);
+  }
+  drawShovel();
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+</body>
+</html>
